@@ -4,6 +4,7 @@ const secret = new TextEncoder().encode('secret')
 
 export const generateToken = (userId: string, exp: string) => {
     return new jose.SignJWT()
+        .setProtectedHeader({ alg: 'HS256' })
         .setAudience('api-gateway')
         .setIssuer('auth-service')
         .setSubject(userId)

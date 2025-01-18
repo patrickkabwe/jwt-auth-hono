@@ -4,17 +4,17 @@ import { createComment, createPost, getComments, getPostById, getPosts } from '.
 
 export const postHandler = async (c: Context) => {
     const { id } = c.req.param()
-    return c.json(getPostById(id))
+    return c.json(await getPostById(id))
 }
 
 export const postsHandler = async (c: Context) => {
     const { userId } = c.var
-    return getPosts({ userId })
+    return c.json(await getPosts({ userId }))
 }
 
 export const createPostHandler = async (c: Context) => {
     const payload = await c.req.json()
-    return c.json(createPost(payload))
+    return c.json(await createPost(payload))
 }
 
 export const commentHandler = async (c: Context) => {
@@ -23,7 +23,7 @@ export const commentHandler = async (c: Context) => {
 
 export const commentsHandler = async (c: Context) => {
     const { postId } = c.var
-    return c.json(getComments(postId))
+    return c.json(await getComments(postId))
 }
 
 export const createCommentHandler = async (c: Context) => {

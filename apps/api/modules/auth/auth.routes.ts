@@ -1,10 +1,12 @@
 import { Hono } from "hono";
-import { loginHandler, registerHandler } from "./auth.handlers";
+import { authMiddlewareHandler, loginHandler, refreshHandler, registerHandler } from "./auth.handlers";
 
 const authRouter = new Hono();
 
 
 authRouter.post('/login', loginHandler)
-authRouter.put('/register', registerHandler)
+authRouter.post('/register', registerHandler)
+
+authRouter.get('/refresh', refreshHandler)
 
 export default authRouter

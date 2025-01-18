@@ -6,6 +6,10 @@ export async function getPosts({ userId }: { userId?: string } = {}) {
     return db?.post.findMany({
         where: {
             authorId: userId
+        },
+        include: {
+            comments: true,
+            author: true
         }
     })
 }
@@ -20,9 +24,7 @@ export async function createPost(data: Prisma.PostCreateInput) {
 
 export async function getComments(postId: string) {
     return db?.comment.findMany({
-        where: {
-            postId
-        }
+        where: { postId }
     })
 }
 

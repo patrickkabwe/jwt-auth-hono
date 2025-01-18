@@ -1,4 +1,5 @@
 # jwt-auth
+Demo of JWT authentication + refresh token in Bun.
 
 To install dependencies:
 
