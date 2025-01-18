@@ -1,5 +1,3 @@
-
-
 import { Hono } from "hono";
 import { commentsHandler, postHandler, postsHandler } from "./content.handlers";
 import { authMiddlewareHandler } from "../auth/auth.handlers";
