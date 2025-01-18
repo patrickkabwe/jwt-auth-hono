@@ -1,8 +1,8 @@
 import { Context } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
-import { generateToken, verifyToken } from '../../utils'
-import { createUser, getUserByEmail } from './auth.service'
+import { decodeToken, generateToken, verifyToken } from '../../utils'
+import { createRefreshToken, createUser, getRefreshToken, getUserByEmail } from './auth.service'
 
 export const authMiddlewareHandler = createMiddleware(async (c, next) => {
     const authToken = c.req.header('Authorization')
@@ -11,8 +11,6 @@ export const authMiddlewareHandler = createMiddleware(async (c, next) => {
     }
 
     const [_, token] = authToken.split(' ')
-
-    console.log(token);
 
 
     try {
@@ -23,6 +21,8 @@ export const authMiddlewareHandler = createMiddleware(async (c, next) => {
         c.set('userId', jwt.payload.sub)
         return await next()
     } catch (e) {
+        // console.log(e);
+
         return c.json({ message: 'Session Expired' }, 403)
     }
 })
@@ -45,9 +45,11 @@ export const loginHandler = async (c: Context) => {
     //     return c.status(401)
     // }
 
-    const accessToken = await generateToken(user.id, '10s')
+    const accessToken = await generateToken(user.id, '2s')
 
     const refreshToken = await generateToken(user.id, '7d')
+
+    await createRefreshToken({ userId: user.id, token: refreshToken })
 
     setCookie(c, 'refreshToken', refreshToken, {
         httpOnly: true,
@@ -69,17 +71,26 @@ export const logoutHandler = async (c: Context) => {
 }
 
 export const refreshHandler = async (c: Context) => {
-    const userId = c.var.userId
     const refreshToken = getCookie(c, 'refreshToken')
     if (!refreshToken) {
         return c.json({ message: 'No token provided' }, 401)
     }
 
-    const jwt = await verifyToken(refreshToken)
+    const userId = await decodeToken(refreshToken)
 
-    if (jwt.payload.sub !== userId) {
+    if (!userId) {
         return c.json({ message: 'Invalid token' }, 401)
     }
+
+    const rt = await getRefreshToken(userId, refreshToken)
+
+    if (!rt) {
+        return c.json({ message: 'Invalid token' }, 401)
+    }
+
+    await verifyToken(rt)
+
+
 
     const newRefreshToken = await generateToken(userId, '7d')
     setCookie(c, 'refreshToken', newRefreshToken, {
@@ -89,6 +100,7 @@ export const refreshHandler = async (c: Context) => {
         maxAge: 60 * 60 * 24 * 7
     })
 
+    await createRefreshToken({ userId, token: newRefreshToken })
     const accessToken = await generateToken(userId, '2s')
 
     return c.json({ accessToken })

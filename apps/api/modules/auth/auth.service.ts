@@ -1,10 +1,12 @@
 import { Prisma } from "@prisma/client"
-import db from "../../db"
+import db from "../../lib/db"
+import redis from "../../lib/redis"
+
+export const RT_KEY = 'rf'
 
 export const getUser = async (id: string) => {
     return db?.user.findUnique({ where: { id } })
 }
-
 
 export const getUserByEmail = async (email: string) => {
     return db?.user.findUnique({ where: { email } })
@@ -24,17 +26,36 @@ export const deleteUser = async (id: string) => {
 }
 
 export const createRefreshToken = async (data: Prisma.RefreshTokenCreateInput) => {
+    await redis.set(`${RT_KEY}:${data.userId}`, data.token, 'EX', 60 * 60 * 24 * 7)
     return db?.refreshToken.create({ data })
+}
+
+export const updateRefreshToken = async (oldToken: string, data: Prisma.RefreshTokenUpdateInput) => {
+    await redis.set(`${RT_KEY}:${data.userId}`, data.token as string, 'EX', 60 * 60 * 24 * 7)
+    return db?.refreshToken.update({ where: { token: oldToken }, data })
 }
 
 export const revokeRefreshToken = async (id: string) => {
     return db?.refreshToken.delete({ where: { id } })
 }
 
-export const getRefreshToken = async (id: string) => {
-    return db?.refreshToken.findUnique({ where: { id } })
+export const getRefreshToken = async (userId: string, token: string) => {
+    const _token = await redis.get(`${RT_KEY}:${userId}`)
+
+    if (_token) {
+        return _token
+    }
+    const rf = await db?.refreshToken.findUnique({ where: { token } })
+    return rf?.token
 }
 
 export const getRefreshTokens = async (userId: string) => {
     return db?.refreshToken.findMany({ where: { userId } })
+}
+
+export const deleteExpiredRefreshTokens = async () => {
+    const sevenDaysAgo = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7)
+    console.log('Deleting expired refresh tokens older than', sevenDaysAgo);
+    
+    await db?.refreshToken.deleteMany({ where: { createdAt: { lt: sevenDaysAgo } } })
 }
