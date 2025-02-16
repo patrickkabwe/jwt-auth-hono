@@ -30,11 +30,6 @@ export const createRefreshToken = async (data: Prisma.RefreshTokenCreateInput) =
     return db?.refreshToken.create({ data })
 }
 
-export const updateRefreshToken = async (id: string, data: Prisma.RefreshTokenUpdateInput) => {
-    await redis.set(`${RT_KEY}:${data.userId}`, data.token as string, 'EX', 60 * 60 * 24 * 7)
-    return db?.refreshToken.update({ where: { id }, data })
-}
-
 export const revokeRefreshToken = async (id: string) => {
     return db?.refreshToken.delete({ where: { id } })
 }
