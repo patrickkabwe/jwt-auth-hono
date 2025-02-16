@@ -1,6 +1,7 @@
 import { CronJob } from 'cron'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import * as jose from 'jose'
 import authRouter from '../modules/auth/auth.routes'
 import { deleteExpiredRefreshTokens } from '../modules/auth/auth.service'
 import contentRouter from '../modules/content/content.routes'
@@ -15,7 +16,7 @@ job.start()
 
 app.use('*', async (c, next) => {
     const corsMiddlewareHandler = cors({
-        origin: 'http://localhost:5174',
+        origin: 'http://localhost:5173',
         credentials: true,
     })
     return corsMiddlewareHandler(c, next)

@@ -30,9 +30,9 @@ export const createRefreshToken = async (data: Prisma.RefreshTokenCreateInput) =
     return db?.refreshToken.create({ data })
 }
 
-export const updateRefreshToken = async (oldToken: string, data: Prisma.RefreshTokenUpdateInput) => {
+export const updateRefreshToken = async (id: string, data: Prisma.RefreshTokenUpdateInput) => {
     await redis.set(`${RT_KEY}:${data.userId}`, data.token as string, 'EX', 60 * 60 * 24 * 7)
-    return db?.refreshToken.update({ where: { token: oldToken }, data })
+    return db?.refreshToken.update({ where: { id }, data })
 }
 
 export const revokeRefreshToken = async (id: string) => {
@@ -45,7 +45,7 @@ export const getRefreshToken = async (userId: string, token: string) => {
     if (_token) {
         return _token
     }
-    const rf = await db?.refreshToken.findUnique({ where: { token } })
+    const rf = await db?.refreshToken.findFirst({ where: { token } })
     return rf?.token
 }
 
@@ -56,6 +56,6 @@ export const getRefreshTokens = async (userId: string) => {
 export const deleteExpiredRefreshTokens = async () => {
     const sevenDaysAgo = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7)
     console.log('Deleting expired refresh tokens older than', sevenDaysAgo);
-    
+
     await db?.refreshToken.deleteMany({ where: { createdAt: { lt: sevenDaysAgo } } })
 }

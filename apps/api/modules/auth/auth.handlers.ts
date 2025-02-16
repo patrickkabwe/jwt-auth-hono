@@ -1,6 +1,7 @@
 import { Context } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
+import * as jose from 'jose'
 import { decodeToken, generateToken, verifyToken } from '../../utils'
 import { createRefreshToken, createUser, getRefreshToken, getUserByEmail } from './auth.service'
 
@@ -15,9 +16,6 @@ export const authMiddlewareHandler = createMiddleware(async (c, next) => {
 
     try {
         const jwt = await verifyToken(token)
-
-        console.log(jwt);
-
         c.set('userId', jwt.payload.sub)
         return await next()
     } catch (e) {
@@ -71,39 +69,46 @@ export const logoutHandler = async (c: Context) => {
 }
 
 export const refreshHandler = async (c: Context) => {
-    const refreshToken = getCookie(c, 'refreshToken')
-    if (!refreshToken) {
-        return c.json({ message: 'No token provided' }, 401)
+    try {
+        const refreshToken = getCookie(c, 'refreshToken')
+        if (!refreshToken) {
+            return c.json({ message: 'No token provided' }, 401)
+        }
+
+        const userId = await decodeToken(refreshToken)
+
+        if (!userId) {
+            return c.json({ message: 'Invalid token' }, 401)
+        }
+
+        const rt = await getRefreshToken(userId, refreshToken)
+
+        if (!rt) {
+            return c.json({ message: 'Invalid token' }, 401)
+        }
+
+        await verifyToken(rt)
+
+        const newRefreshToken = await generateToken(userId, '7d')
+        setCookie(c, 'refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 24 * 7
+        })
+
+        await createRefreshToken({ userId, token: newRefreshToken })
+        const accessToken = await generateToken(userId, '2s')
+
+        return c.json({ accessToken })
+
+    } catch (error) {
+        if (error instanceof jose.errors.JWTExpired) {
+            console.log('Session Expired', error);
+            return c.text('Session Expired', 401)
+        }
+        throw error
     }
-
-    const userId = await decodeToken(refreshToken)
-
-    if (!userId) {
-        return c.json({ message: 'Invalid token' }, 401)
-    }
-
-    const rt = await getRefreshToken(userId, refreshToken)
-
-    if (!rt) {
-        return c.json({ message: 'Invalid token' }, 401)
-    }
-
-    await verifyToken(rt)
-
-
-
-    const newRefreshToken = await generateToken(userId, '7d')
-    setCookie(c, 'refreshToken', newRefreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7
-    })
-
-    await createRefreshToken({ userId, token: newRefreshToken })
-    const accessToken = await generateToken(userId, '2s')
-
-    return c.json({ accessToken })
 }
 
 export const authHandlers = {
